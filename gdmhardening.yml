@@ -1,0 +1,127 @@
+#================================================
+#Gnome hardening
+#================================================
+---
+- name: GDM Hardening Configuration
+  hosts: servers
+  become: yes
+  tasks:
+
+    # Ensure dconf profile exists
+    - name: Ensure dconf profile for GDM exists
+      copy:
+        dest: /etc/dconf/profile/gdm
+        mode: '0644'
+        content: |
+          user-db:user
+          system-db:gdm
+          file-db:/usr/share/gdm/greeter-dconf-defaults
+
+    # 🔹 REQUIRED DIRECTORIES (THIS FIXES YOUR ERROR)
+    - name: Ensure GDM dconf database directory exists
+      file:
+        path: /etc/dconf/db/gdm.d
+        state: directory
+        mode: '0755'
+
+    - name: Ensure GDM dconf lock directory exists
+      file:
+        path: /etc/dconf/db/gdm.d/locks
+        state: directory
+        mode: '0755'
+
+    # 1. Ensure GDM login banner is configured
+    - name: Ensure GDM login banner is configured
+      copy:
+        dest: /etc/dconf/db/gdm.d/01-banner-message
+        mode: '0644'
+        content: |
+          [org/gnome/login-screen]
+          banner-message-enable=true
+          banner-message-text='Authorized access only. Unauthorized use is prohibited.'
+
+    # 2. Disable user list
+    - name: Ensure GDM disable-user-list option is enabled
+      copy:
+        dest: /etc/dconf/db/gdm.d/02-disable-user-list
+        mode: '0644'
+        content: |
+          [org/gnome/login-screen]
+          disable-user-list=true
+
+    # 3. Screen locks when idle
+    - name: Ensure GDM screen locks when idle
+      copy:
+        dest: /etc/dconf/db/gdm.d/03-idle-lock
+        mode: '0644'
+        content: |
+          [org/gnome/desktop/session]
+          idle-delay=uint32 900
+
+    # 4. Screen lock cannot be overridden
+    - name: Lock idle screen lock settings
+      copy:
+        dest: /etc/dconf/db/gdm.d/locks/idle-lock
+        mode: '0644'
+        content: |
+          /org/gnome/desktop/session/idle-delay
+
+    # 5. Disable automount
+    - name: Disable automatic mounting of removable media
+      copy:
+        dest: /etc/dconf/db/gdm.d/04-media-automount
+        mode: '0644'
+        content: |
+          [org/gnome/desktop/media-handling]
+          automount=false
+          automount-open=false
+
+    # 6. Automount cannot be overridden
+    - name: Lock automount settings
+      copy:
+        dest: /etc/dconf/db/gdm.d/locks/media-automount
+        mode: '0644'
+        content: |
+          /org/gnome/desktop/media-handling/automount
+          /org/gnome/desktop/media-handling/automount-open
+
+    # 7. Enable autorun-never
+    - name: Enable autorun-never
+      copy:
+        dest: /etc/dconf/db/gdm.d/05-autorun
+        mode: '0644'
+        content: |
+          [org/gnome/desktop/media-handling]
+          autorun-never=true
+
+    # 8. Autorun cannot be overridden
+    - name: Lock autorun-never setting
+      copy:
+        dest: /etc/dconf/db/gdm.d/locks/autorun
+        mode: '0644'
+        content: |
+          /org/gnome/desktop/media-handling/autorun-never
+
+    # Apply changes
+    - name: Update dconf database
+      command: dconf update
+
+  post_tasks:
+    - name: Display remediation summary
+      ansible.builtin.debug:
+       msg:
+          - "======================================================================"
+          - "CIS RHEL 9 GNOME Remediation Complete"
+          - "======================================================================"
+          - "Ensure dconf profile for GDM exists : APPLIED"
+          - "Ensure GDM dconf database directory exists : APPLIED"
+          - "Ensure GDM dconf lock directory exists : APPLIED" 
+          - "Ensure GDM login banner is configured : APPLIED"
+          - "Ensure GDM disable-user-list option is enabled : APPLIED"
+          - "Ensure GDM screen locks when the user is idle : APPLIED " 
+          - "Ensure GDM screen locks cannot be overridden : APPLIED "
+          - "Ensure GDM automatic mounting of removable media is disabled : APPLIED"
+          - "Ensure GDM disabling automatic mounting of removable media is not overridden : APPLIED"
+          - "Ensure GDM autorun-never is enabled : APPLIED"
+          - "Ensure GDM autorun-never is not overridden  : APPLIED"
+          - "======================================================================="
