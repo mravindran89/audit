@@ -1,0 +1,528 @@
+#==================================================================
+# Configure auditd rules
+# =================================================================
+# 4.1.3.2 Ensure actions as another user are always logged
+# ================================================================
+- name: Ensure actions as another user are always logged
+  hosts: servers
+  become: yes
+  tasks:
+
+    - name: Ensure /etc/audit/rules.d directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+ 
+    - name: Add user emulation audit rule (64-bit)
+      blockinfile:
+        path: /etc/audit/rules.d/50-user_emulation.rules
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |
+          -a always,exit -F arch=b64 -C euid!=uid -F auid>=1000 -F auid!=unset -S execve -k user_emulation
+
+    - name: Load audit rules
+      command: augenrules --load
+#===========================================================================
+#4.1.3.3 Ensure events that modify the sudo log file are collected
+#===========================================================================
+    - name: Ensure /etc/audit/rules.d directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Add audit rule for sudo log file modifications
+      lineinfile:
+        path: /etc/audit/rules.d/50-sudo_log.rules
+        line: '-w /var/log/sudo.log -p wa -k sudo_log_file'
+        create: yes
+        state: present
+        insertafter: EOF
+
+    - name: Load audit rules
+      command: augenrules --load
+
+#=============================================================================
+#4.1.3.1 Ensure changes to system administration scope (sudoers) is collected
+#=============================================================================
+    - name: Ensure /etc/audit/rules.d directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Add sudo scope audit rules
+      blockinfile:
+        path: /etc/audit/rules.d/50-scope.rules
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |
+          -w /etc/sudoers -p wa -k scope
+          -w /etc/sudoers.d -p wa -k scope
+
+    - name: Load audit rules
+      command: augenrules --load
+#=============================================================================
+#4.1.3.4 Ensure events that modify date and time information are collected
+#=============================================================================
+
+    - name: Ensure audit rules directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Add time change audit rules
+      blockinfile:
+        path: /etc/audit/rules.d/50-time-change.rules
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |
+          -a always,exit -F arch=b64 -S adjtimex,settimeofday,clock_settime -k time-change
+          -a always,exit -F arch=b32 -S adjtimex,settimeofday,clock_settime -k time-change
+          -w /etc/localtime -p wa -k time-change
+
+    - name: Load audit rules
+      command: augenrules --load
+        
+#=================================================================================
+#4.1.3.5 Ensure events that modify the system's network environment are collected
+#=================================================================================
+     
+    - name: Ensure audit rules directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Add system locale and network environment audit rules
+      blockinfile:
+        path: /etc/audit/rules.d/50-system_local.rules
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |
+          -a always,exit -F arch=b64 -S sethostname,setdomainname -k system-locale
+          -a always,exit -F arch=b32 -S sethostname,setdomainname -k system-locale
+          -w /etc/issue -p wa -k system-locale
+          -w /etc/issue.net -p wa -k system-locale
+          -w /etc/hosts -p wa -k system-locale
+          -w /etc/sysconfig/network -p wa -k system-locale
+          -w /etc/sysconfig/network-scripts/ -p wa -k system-locale
+
+    - name: Load audit rules
+      command: augenrules --load
+#=================================================================================
+#4.1.3.6 Ensure use of privileged commands are collected
+#=================================================================================
+    - name: Ensure audit rules directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Add system locale and network environment audit rules
+      blockinfile:
+        path: /etc/audit/rules.d/50-privileged.rules
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |
+          -a always,exit -F path=/usr/bin/passwd -F perm=x -F auid>=1000 -F auid!=unset -k privileged
+
+    - name: Load audit rules
+      command: augenrules --load
+#======================================================================================
+#4.1.3.7 Ensure unsuccessful file access attempts are collected
+#======================================================================================
+    - name: Ensure audit rules directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Unsuccessful file access attempts are collected
+      blockinfile:
+        path: /etc/audit/rules.d/50-access.rules
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |
+          # -a always,exit -F arch=b64 -S creat,open,openat,truncate,ftruncate -F exit=-EACCES -F auid>=${UID_MIN} -F auid!=unset -k access
+          #-a always,exit -F arch=b64 -S creat,open,openat,truncate,ftruncate -F exit=-EPERM -F auid>=${UID_MIN} -F auid!=unset -k access
+          -a always,exit -F arch=b64 -S open,openat,creat,truncate,ftruncate -F exit=-EACCES -F auid>=1000 -F auid!=unset -k access
+          -a always,exit -F arch=b64 -S open,openat,creat,truncate,ftruncate -F exit=-EPERM -F auid>=1000 -F auid!=unset -k access
+
+    - name: Load audit rules
+      command: augenrules --load
+#========================================================================================
+#4.1.3.8 Ensure events that modify user/group information are collected
+#========================================================================================
+    - name: Ensure audit rules directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Ensure events that modify user/group information are collected
+      blockinfile:
+        path: /etc/audit/rules.d/50-identity.rules
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |
+          -w /etc/group -p wa -k identity
+          -w /etc/passwd -p wa -k identity
+          -w /etc/gshadow -p wa -k identity
+          -w /etc/shadow -p wa -k identity
+          -w /etc/security/opasswd -p wa -k identity
+
+    - name: Load audit rules
+      command: augenrules --load
+#========================================================================================
+#4.1.3.9 Ensure discretionary access control permission modification events are collected
+#========================================================================================
+
+    - name: Ensure audit rules directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Ensure discretionary access control permission modification events are collected
+      blockinfile:
+        path: /etc/audit/rules.d/50-perm_mod.rules 
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |
+          -a always,exit -F arch=b64 -S chmod,fchmod,fchmodat -F auid>=1000 -F auid!=unset -F key=perm_mod
+          -a always,exit -F arch=b64 -S chown,fchown,lchown,fchownat -F auid>=1000 -F auid!=unset -F key=perm_mod
+          -a always,exit -F arch=b64 -S setxattr,lsetxattr,fsetxattr,removexattr,lremovexattr,fremovexattr -F auid>=1000 -F auid!=unset -F key=perm_mod
+ 
+    - name: Load audit rules
+      command: augenrules --load
+#==========================================================================================
+#4.1.3.10 Ensure successful file system mounts are collected
+#==========================================================================================
+    - name: Ensure audit rules directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Ensure successful file system mounts are collected
+      blockinfile:
+        path: /etc/audit/rules.d/50-mounts.rules
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |
+          -a always,exit -F arch=b64 -S mount -F auid>=1000 -F auid!=unset -k mounts
+
+    - name: Load audit rules
+      command: augenrules --load
+#=========================================================================================
+#4.1.3.11 Ensure session initiation information is collected
+#=========================================================================================
+    - name: Ensure audit rules directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Ensure session initiation information is collected
+      blockinfile:
+        path: /etc/audit/rules.d/50-session.rules
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |
+          -w /var/run/utmp -p wa -k session
+          -w /var/log/wtmp -p wa -k session
+          -w /var/log/btmp -p wa -k session
+
+    - name: Load audit rules
+      command: augenrules --load
+#==========================================================================================
+#4.1.3.12 Ensure login and logout events are collected
+#==========================================================================================
+    - name: Ensure audit rules directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+   
+    - name: Ensure login and logout events are collected
+      blockinfile:
+        path: /etc/audit/rules.d/50-login.rules
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |
+          -w /var/log/lastlog -p wa -k logins
+          -w /var/run/faillock -p wa -k logins
+
+    - name: Load audit rules
+      command: augenrules --load
+#============================================================================================
+#4.1.3.13 Ensure file deletion events by users are collected
+#===========================================================================================
+    - name: Ensure audit rules directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Ensure file deletion events by users are collected
+      blockinfile:
+        path: /etc/audit/rules.d/50-delete.rules
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |      
+          -a always,exit -F arch=b64 -S rename,unlink,unlinkat,renameat -F auid>=1000 -F auid!=unset -F key=delete
+
+    - name: Load audit rules
+      command: augenrules --load
+#=============================================================================================
+#4.1.3.14 Ensure events that modify the system's Mandatory Access Controls are collected
+#=============================================================================================
+    - name: Ensure audit rules directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Ensure events that modify the system's Mandatory Access Controls are collected
+      blockinfile:
+        path: /etc/audit/rules.d/50-MAC-policy.rules
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |
+          -w /etc/selinux -p wa -k MAC-policy
+          -w /usr/share/selinux -p wa -k MAC-policy
+
+    - name: Load audit rules
+      command: augenrules --load
+#===========================================================================================
+#4.1.3.15 Ensure successful and unsuccessful attempts to use the chcon command are recorded
+#===========================================================================================
+    - name: Ensure audit rules directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Ensure successful and unsuccessful attempts to use the chcon command are recorded 
+      blockinfile:
+        path: /etc/audit/rules.d/50-perm_chng1.rules
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |
+          -a always,exit -F path=/usr/bin/chcon -F perm=x -F auid>=1000 -F auid!=unset -k perm_chng
+
+    - name: Load audit rules
+      command: augenrules --load
+#============================================================================================
+#4.1.3.16 Ensure successful and unsuccessful attempts to use the setfacl command are recorded
+#============================================================================================
+    - name: Ensure audit rules directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Ensure successful and unsuccessful attempts to use the setfacl command are recorded
+      blockinfile:
+        path: /etc/audit/rules.d/50-perm_chng2.rules
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |
+          -a always,exit -F path=/usr/bin/setfacl -F perm=x -F auid>=1000 -F auid!=unset -k perm_chng
+
+    - name: Load audit rules
+      command: augenrules --load
+#==============================================================================================
+#4.1.3.17 Ensure successful and unsuccessful attempts to use the chacl command are recorded
+#==============================================================================================
+
+    - name: Ensure audit rules directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Ensure successful and unsuccessful attempts to use the chacl command are recorded
+      blockinfile:
+        path: /etc/audit/rules.d/50-perm_chng3.rules
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |
+          -a always,exit -F path=/usr/bin/chacl -F perm=x -F auid>=1000 -F auid!=unset -k perm_chng
+
+    - name: Load audit rules
+      command: augenrules --load
+#=============================================================================================
+#4.1.3.18 Ensure successful and unsuccessful attempts to use the usermod command are recorded
+#============================================================================================
+    - name: Ensure audit rules directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Ensure successful and unsuccessful attempts to use the usermod command are recorded
+      blockinfile:
+        path: /etc/audit/rules.d/50-usermod.rules 
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |
+          -a always,exit -F path=/usr/sbin/usermod -F perm=x -F auid>=1000 -F auid!=unset -k usermod
+
+    - name: Load audit rules
+      command: augenrules --load
+
+#============================================================================================        
+#4.1.3.19 Ensure kernel module loading unloading and modification is collected
+#============================================================================================
+
+    - name: Ensure audit rules directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Ensure kernel module loading unloading and modification is collected
+      blockinfile:
+        path: /etc/audit/rules.d/50-kernel_modules.rules
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |
+          -a always,exit -F arch=b64 -S init_module,finit_module,delete_module,create_module,query_module -F auid>=1000 -F auid!=unset -k kernel_modules
+          -a always,exit -F path=/usr/bin/kmod -F perm=x -F auid>=1000 -F auid!=unset -k kernel_modules
+
+    - name: Load audit rules
+      command: augenrules --load
+
+#==================================================================================================
+#4.1.3.20 Ensure the audit configuration is immutable
+#==================================================================================================
+
+    - name: Ensure audit rules directory exists
+      file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Ensure kernel module loading unloading and modification is collected
+      blockinfile:
+        path: /etc/audit/rules.d/99-finalize.rules
+        create: yes
+        owner: root
+        group: root
+        mode: '0640'
+        block: |
+          -e 2
+    - name: Load audit rules
+      command: augenrules --load      
+
+  post_tasks:
+    - name: Display remediation summary
+      ansible.builtin.debug:
+        msg:
+          - "======================================================================"
+          - "CIS RHEL 9 Audit Policy Complete"
+          - "======================================================================"
+          - "4.1.3.1 Ensure changes to system administration scope (sudoers) is collected : APPLIED"
+          - "4.1.3.2  Ensure actions as another user are always logged            : APPLIED"
+          - "4.1.3.3  Ensure events that modify the sudo scope are collected       : APPLIED"
+          - "4.1.3.4  Ensure events that modify date and time are collected        : APPLIED"
+          - "4.1.3.5  Ensure events that modify system network environment are collected : APPLIED"
+          - "4.1.3.6  Ensure privileged commands are collected                     : APPLIED"
+          - "4.1.3.7 Ensure unsuccessful file access attempts are collected        : APPLIED"
+          - "4.1.3.8 Ensure events that modify user/group information are collected : APPLIED"
+          - "4.1.3.9 Ensure discretionary access control permission modification events are collected : APPLIED"
+          - "4.1.3.10 Ensure successful file system mounts are collected   : APPLIED"
+          - "4.1.3.11 Ensure session initiation information is collected   : APPLIED"
+          - "4.1.3.12 Ensure login and logout events are collected         : APPLIED"
+          - "4.1.3.13 Ensure file deletion events by users are collected   : APPLIED"
+          - "4.1.3.14 Ensure events that modify the system's Mandatory Access Controls are collected : APPLIED"
+          - "4.1.3.15 Ensure successful and unsuccessful attempts to use the chcon command are recorded : APPLIED"
+          - "4.1.3.16 Ensure successful and unsuccessful attempts to use the setfacl command are recorded : APPLIED"
+          - "4.1.3.17 Ensure successful and unsuccessful attempts to use the chacl command are recorded : APPLIED"
+          - "4.1.3.18 Ensure successful and unsuccessful attempts to use the usermod command are recorded : APPLIED"
+          - "4.1.3.19 Ensure kernel module loading unloading and modification is collected : APPLIED"
+          - "4.1.3.20 Ensure the audit configuration is immutable  : APPLIED"
+          - "Audit rules loaded successfully using augenrules"
+          - "======================================================================"
+   
