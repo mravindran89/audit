@@ -1,0 +1,51 @@
+#===================================================
+#System Information
+#==================================================
+---
+- name: Collect server CPU, RAM, OS, hardware, and df -lh
+  hosts: servers
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    # ---------------- OS DETAILS ----------------
+    - name: Display OS details
+      debug:
+        msg:
+          - "Hostname        : {{ ansible_hostname }}"
+          - "OS              : {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Kernel Version  : {{ ansible_kernel }}"
+          - "Architecture    : {{ ansible_architecture }}"
+
+    # ---------------- CPU DETAILS ----------------
+    - name: Display CPU details
+      debug:
+        msg:
+          - "CPU Model       : {{ ansible_processor[1] }}"
+          - "CPU Cores       : {{ ansible_processor_cores }}"
+          - "CPU Threads     : {{ ansible_processor_vcpus }}"
+
+    # ---------------- RAM DETAILS ----------------
+    - name: Display RAM details
+      debug:
+        msg:
+          - "Total RAM (MB)  : {{ ansible_memtotal_mb }}"
+          - "Free RAM (MB)   : {{ ansible_memfree_mb }}"
+
+    # ---------------- HARDWARE DETAILS ----------------
+    - name: Display system hardware details
+      debug:
+        msg:
+          - "System Vendor   : {{ ansible_system_vendor }}"
+          - "Product Name    : {{ ansible_product_name }}"
+          - "Product Version : {{ ansible_product_version }}"
+
+    # ---------------- DF -LH ----------------
+    - name: Run df -lh
+      command: df -lh
+      register: df_output
+
+    - name: Display df -lh output
+      debug:
+        msg: "{{ df_output.stdout_lines }}"
+
