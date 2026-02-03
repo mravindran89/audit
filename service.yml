@@ -1,0 +1,141 @@
+#==================================================
+#Service & Package Hardening
+#==================================================
+---
+- name: Remove unnecessary services and packages
+  hosts: servers
+  become: yes
+  tasks:
+
+    - name: Ensure Avahi Server is not installed
+      package:
+        name: avahi
+        state: absent
+
+    - name: Ensure CUPS is not installed
+      package:
+        name: cups
+        state: absent
+
+    - name: Ensure DHCP Server is not installed
+      package:
+        name: dhcp-server
+        state: absent
+
+    - name: Ensure DNS Server is not installed
+      package:
+        name: bind
+        state: absent
+
+    - name: Ensure VSFTP Server is not installed
+      package:
+        name: vsftpd
+        state: absent
+
+    - name: Ensure TFTP Server is not installed
+      package:
+        name: tftp-server
+        state: absent
+
+    - name: Ensure a web server is not installed
+      package:
+        name:
+          - httpd
+          - nginx
+        state: absent
+
+    - name: Ensure IMAP and POP3 server is not installed
+      package:
+        name:
+          - dovecot
+          - cyrus-imapd
+        state: absent
+
+    - name: Ensure Samba is not installed
+      package:
+        name: samba
+        state: absent
+
+    - name: Ensure HTTP Proxy Server is not installed
+      package:
+        name: squid
+        state: absent
+
+    - name: Ensure net-snmp is not installed
+      package:
+        name: net-snmp
+        state: absent
+
+    - name: Ensure telnet-server is not installed
+      package:
+        name: telnet-server
+        state: absent
+
+    - name: Ensure dnsmasq is not installed
+      package:
+        name: dnsmasq
+        state: absent
+
+    - name: Ensure nfs-utils is not installed
+      package:
+        name: nfs-utils
+        state: absent
+
+    - name: Mask nfs-server service
+      systemd:
+        name: nfs-server
+        masked: yes
+        enabled: no
+        state: stopped
+      ignore_errors: yes
+
+    - name: Ensure rpcbind is not installed
+      package:
+        name: rpcbind
+        state: absent
+
+    - name: Mask rpcbind service
+      systemd:
+        name: rpcbind
+        masked: yes
+        enabled: no
+        state: stopped
+      ignore_errors: yes
+
+    - name: Ensure rsync-daemon is not installed
+      package:
+        name: rsync
+        state: absent
+
+    - name: Mask rsyncd service
+      systemd:
+        name: rsyncd
+        masked: yes
+        enabled: no
+        state: stopped
+      ignore_errors: yes
+
+  post_tasks:
+    - name: Display remediation summary
+      ansible.builtin.debug:
+       msg:
+          - "======================================================================"
+          - "CIS RHEL 9 Remediation Complete"
+          - "======================================================================"
+          - " Ensure Avahi Server is not installed  : APPLIED "
+          - " Ensure CUPS is not installed	    : APPLIED "
+          - " Ensure DHCP Server is not installed   : APPLIED "
+          - " Ensure DNS Server is not installed    : APPLIED "
+          - " Ensure VSFTP Server is not installed  : APPLIED "
+          - " Ensure TFTP Server is not installed   : APPLIED "
+          - " Ensure a web server is not installed  : APPLIED "
+          - " Ensure IMAP and POP3 server is not installed : APPLIED "
+          - " Ensure Samba is not installed	: APPLIED "
+          - " Ensure HTTP Proxy Server is not installed : APPLIED "
+          - " Ensure net-snmp is not installed	: APPLIED "
+          - " Ensure telnet-server is not installed : APPLIED "
+          - " Ensure dnsmasq is not installed	: APPLIED "
+          - " Ensure nfs-utils is not installed or the nfs-server service is masked : APPLIED "
+          - " Ensure rpcbind is not installed or the rpcbind services are masked : APPLIED "
+          - "  Ensure rsync-daemon is not installed or the rsyncd service is masked : APPLIED"
+          - " ========================================================================"
