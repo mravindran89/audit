@@ -1,0 +1,138 @@
+#====================================================================
+# SSH Hardening
+#===================================================================
+- name: SSH Server Hardening
+  hosts: servers
+  become: yes
+
+  vars:
+    sshd_config: /etc/ssh/sshd_config
+    ssh_allowed_users: "engg bng bizops "
+    ssh_banner: /etc/issue.net
+
+  tasks:
+    # Ensure SSH access is limited
+   - name: Configure AllowUsers
+     lineinfile:
+       path: "{{ sshd_config }}"
+       regexp: '^AllowUsers'
+       line: "AllowUsers {{ ssh_allowed_users }}"
+       create: yes
+
+   # Ensure SSH LogLevel is appropriate
+   - name: Set SSH LogLevel
+     lineinfile:
+      path: "{{ sshd_config }}"
+      regexp: '^LogLevel'
+      line: 'LogLevel INFO'
+
+   # Ensure SSH root login is disabled
+   - name: Disable root login
+     lineinfile:
+      path: "{{ sshd_config }}"
+      regexp: '^PermitRootLogin'
+      line: 'PermitRootLogin yes'
+
+   # Ensure PermitEmptyPasswords is disabled
+   - name: Disable empty passwords
+     lineinfile:
+       path: "{{ sshd_config }}"
+       regexp: '^PermitEmptyPasswords'
+       line: 'PermitEmptyPasswords no'
+
+   # Ensure IgnoreRhosts is enabled
+   - name: Enable IgnoreRhosts
+     lineinfile:
+      path: "{{ sshd_config }}"
+      regexp: '^IgnoreRhosts'
+      line: 'IgnoreRhosts yes'
+
+   # Ensure X11 forwarding is disabled
+   - name: Disable X11Forwarding
+     lineinfile:
+      path: "{{ sshd_config }}"
+      regexp: '^X11Forwarding'
+      line: 'X11Forwarding no'
+
+   # Ensure AllowTcpForwarding is disabled
+   - name: Disable TCP forwarding
+     lineinfile:
+      path: "{{ sshd_config }}"
+      regexp: '^AllowTcpForwarding'
+      line: 'AllowTcpForwarding no'
+         
+  # Ensure SSH warning banner is configured
+   - name: Configure SSH banner
+     lineinfile:
+      path: "{{ sshd_config }}"
+      regexp: '^Banner'
+      line: "Banner {{ ssh_banner }}"
+
+  # Ensure MaxAuthTries is set to 4 or less
+   - name: Set MaxAuthTries
+     lineinfile:
+      path: "{{ sshd_config }}"
+      regexp: '^MaxAuthTries'
+      line: 'MaxAuthTries 4' 
+
+  # Ensure MaxStartups is configured
+   - name: Set MaxStartups
+     lineinfile:
+      path: "{{ sshd_config }}"
+      regexp: '^MaxStartups'
+      line: 'MaxStartups 10:30:60'
+  
+  # Ensure MaxSessions is set to 10 or less
+   - name: Set MaxSessions
+     lineinfile:
+      path: "{{ sshd_config }}"
+      regexp: '^MaxSessions'
+      line: 'MaxSessions 10'
+
+  # Ensure LoginGraceTime is set to 60 seconds or less
+   - name: Set LoginGraceTime
+     lineinfile:
+      path: "{{ sshd_config }}"
+      regexp: '^LoginGraceTime'
+      line: 'LoginGraceTime 60'
+       
+  # Ensure SSH Idle Timeout Interval is configured
+   - name: Set SSH idle timeout
+     block:
+      - lineinfile:
+          path: "{{ sshd_config }}"
+          regexp: '^ClientAliveInterval'
+          line: 'ClientAliveInterval 300'
+      - lineinfile:
+          path: "{{ sshd_config }}"
+          regexp: '^ClientAliveCountMax'
+          line: 'ClientAliveCountMax 0'
+
+  # Restart SSH service
+   - name: Restart sshd
+     service:
+       name: sshd
+       state: restarted
+
+  post_tasks:
+    - name: Display remediation summary
+      ansible.builtin.debug:
+       msg:
+          - "======================================================================"
+          - " RHEL 9 SSH Remediation Completed"
+          - "======================================================================"
+          - " Ensure SSH access is limited : APPLIED "
+          - " Ensure SSH LogLevel is appropriate : APPLIED"
+          - " Ensure SSH root login is disabled : APPLIED "
+          - " Ensure SSH PermitEmptyPasswords is disabled : APPLIED"
+          - " Ensure SSH IgnoreRhosts is enabled : APPLIED "
+          - " Ensure SSH X11 forwarding is disabled : APPLIED "
+          - " Ensure SSH AllowTcpForwarding is disabled : APPLIED "
+          - " Ensure SSH warning banner is configured : APPLIED"
+          - " Ensure SSH MaxAuthTries is set to 4 or less : APPLIED "
+          - " Ensure SSH MaxStartups is configured : APPLIED"        
+          - " Ensure SSH MaxSessions is set to 10 or less : APPLIED"
+          - " Ensure SSH LoginGraceTime is set to one minute or less : APPLIED"
+          - " Ensure SSH Idle Timeout Interval is configured : APPLIED "
+          - " ======================================================================= "
+
